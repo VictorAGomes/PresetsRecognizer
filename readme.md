@@ -28,3 +28,7 @@ https://github.com/cvlab-epfl/disk
 - ALIKE
 
 https://github.com/Shiaoming/ALIKE 
+
+- LoFTR
+
+https://zju3dv.github.io/loftr/
