@@ -8,6 +8,7 @@ import numpy as np
 # Importação dos algoritmos disponíveis
 from algorithms.orb import PresetRecognizer as ORBRecognizer
 from algorithms.sift import PresetRecognizer as SIFTRecognizer
+from algorithms.brisk import PresetRecognizer as BRISKRecognizer
 
 datetime_now = time.strftime("%Y%m%d-%H%M%S")
 PROJECT_ROOT = Path(__file__).resolve().parent
@@ -15,7 +16,7 @@ PRESET_TEST_JSON = PROJECT_ROOT / "data/cameras.json"
 RESULTS_JSON = PROJECT_ROOT / f"resultados/resultados-{datetime_now}.json"
 
 # Escolha do algoritmo: "orb" ou "sift"
-ALGORITHM = "orb"
+ALGORITHM = "brisk"
 
 
 def get_recognizer(algorithm: str):
@@ -23,6 +24,8 @@ def get_recognizer(algorithm: str):
         return ORBRecognizer()
     elif algorithm == "sift":
         return SIFTRecognizer()
+    elif algorithm == "brisk":
+        return BRISKRecognizer()
     else:
         raise ValueError(f"Algoritmo desconhecido: {algorithm}")
 

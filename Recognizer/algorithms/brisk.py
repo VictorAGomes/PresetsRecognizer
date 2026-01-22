@@ -1,14 +1,12 @@
-import datetime
-import cv2
-import os
-import numpy as np
-from typing import Dict, Tuple, Optional, List
 import base64
-import logging
+import datetime
 import io
-
+import logging
+import os
+from typing import Dict, List, Optional, Tuple
 
 import cv2
+import numpy as np
 
 N_FEATURES = 10000
 THRESH = 30
@@ -16,6 +14,7 @@ OCTAVES = 3
 PATTERN_SCALE = 1.0
 
 logger = logging.getLogger(__name__)
+
 
 class PresetRecognizer:
     """
@@ -25,10 +24,13 @@ class PresetRecognizer:
 
     def __init__(
         self,
-        num_features: int = 8000,
+        num_features: int = 8000,  # Mantém compatibilidade, mas não é usado
         good_match_ratio: float = 0.75,
         min_good_matches: int = 10,
         target_size: Tuple[int, int] = (640, 480),
+        brisk_thresh: int = 30,
+        brisk_octaves: int = 3,
+        brisk_pattern_scale: float = 1.0,
     ) -> None:
         """
         Inicializa o reconhecedor de presets.
@@ -37,8 +39,10 @@ class PresetRecognizer:
             num_features: número máximo de features BRISK por imagem.
             good_match_ratio: razão de Lowe no matching (0 < ratio < 1).
             target_size: tamanho para redimensionar imagens (largura, altura).
+            brisk_thresh: threshold para o detector BRISK.
+            brisk_octaves: número de octaves para o detector BRISK.
+            brisk_pattern_scale: escala do padrão para o detector BRISK.
         """
-        # validação básica de parâmetros
         if not (0 < good_match_ratio < 1):
             raise ValueError("good_match_ratio deve estar em (0, 1).")
 
@@ -47,9 +51,9 @@ class PresetRecognizer:
         self.min_good_matches = min_good_matches
         self.target_size = target_size
 
-        # Detector BRISK (parâmetros ajustados)
+        # Detector BRISK com parâmetros configuráveis
         self.brisk = cv2.BRISK_create(
-            thresh=THRESH, octaves=OCTAVES, patternScale=PATTERN_SCALE
+            thresh=brisk_thresh, octaves=brisk_octaves, patternScale=brisk_pattern_scale
         )
 
         # Matcher
