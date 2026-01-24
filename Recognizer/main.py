@@ -10,16 +10,15 @@ from algorithms.sift import PresetRecognizer as SIFTRecognizer
 from algorithms.brisk import PresetRecognizer as BRISKRecognizer
 from algorithms.r2d2_preset import PresetRecognizer as R2D2Recognizer
 from algorithms.kaze import PresetRecognizer as KAZERecognizer
-
+from algorithms.superpoint_recognizer import SuperPointPresetRecognizer as SuperPointRecognizer
 
 datetime_now = time.strftime("%Y%m%d-%H%M%S")
 PROJECT_ROOT = Path(__file__).resolve().parent
 PRESET_TEST_JSON = PROJECT_ROOT / "data/cameras.json"
 RESULTS_JSON = PROJECT_ROOT / f"resultados/resultados-{datetime_now}.json"
 
-# Escolha do algoritmo: "orb", "sift", "brisk", "kaze", "r2d2"
-ALGORITHM = "kaze"
-
+# Escolha do algoritmo: "orb" ou "sift" ou "brisk" ou "r2d2" ou "superpoint"
+ALGORITHM = "superpoint"
 
 def get_recognizer(algorithm: str):
     if algorithm == "orb":
@@ -32,6 +31,8 @@ def get_recognizer(algorithm: str):
         return KAZERecognizer()
     elif algorithm == "r2d2":
         return R2D2Recognizer()
+    elif algorithm == "superpoint":
+        return SuperPointRecognizer()
     else:
         raise ValueError(f"Algoritmo desconhecido: {algorithm}")
 
