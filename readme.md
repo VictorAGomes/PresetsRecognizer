@@ -33,7 +33,7 @@ https://github.com/rpautrat/SuperPoint
 
 https://github.com/cvlab-epfl/disk
 
-- ALIKE
+- ALIKE ✅
 
 https://github.com/Shiaoming/ALIKE 
 
