@@ -1,6 +1,5 @@
 import logging
-import os
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, Optional, Tuple
 
 import cv2
 import numpy as np
@@ -21,7 +20,7 @@ class PresetRecognizer:
 
     def __init__(
         self,
-        model_path: str = "algorithms/r2d2/r2d2_WASF_N16.pt",
+        model_path: str = "Recognizer/algorithms/r2d2/r2d2_WASF_N16.pt",
         good_match_ratio: float = 0.75,
         min_good_matches: int = 10,
         target_size: Tuple[int, int] = (640, 480),
@@ -57,8 +56,7 @@ class PresetRecognizer:
 
         # Detector NMS
         self.detector = NonMaxSuppression(
-            rel_thr=reliability_thr,
-            rep_thr=repeatability_thr
+            rel_thr=reliability_thr, rep_thr=repeatability_thr
         )
 
         # Matcher - R2D2 usa descritores L2
@@ -120,7 +118,7 @@ class PresetRecognizer:
                     max_scale=1,
                     min_size=256,
                     max_size=1024,
-                    verbose=False
+                    verbose=False,
                 )
 
             xys = xys.cpu().numpy()
@@ -129,7 +127,7 @@ class PresetRecognizer:
 
             # Seleciona top-k keypoints
             if len(scores) > 0:
-                idxs = scores.argsort()[-self.top_k or None:]
+                idxs = scores.argsort()[-self.top_k or None :]
                 keypoints = xys[idxs, :2]  # Pega apenas x, y
                 descriptors = desc[idxs]
             else:
@@ -208,9 +206,7 @@ class PresetRecognizer:
 
         return len(good_matches)
 
-    def identificar_preset(
-        self, imagem: np.ndarray
-    ) -> Tuple[Optional[str], float]:
+    def identificar_preset(self, imagem: np.ndarray) -> Tuple[Optional[str], float]:
         """
         Identifica o preset de uma nova imagem.
 
@@ -253,9 +249,7 @@ class PresetRecognizer:
         melhor_preset = max(matches_por_preset, key=matches_por_preset.get)
         melhor_score = float(matches_por_preset[melhor_preset])
 
-        logger.info(
-            f"Melhor preset: {melhor_preset} com {melhor_score} good matches"
-        )
+        logger.info(f"Melhor preset: {melhor_preset} com {melhor_score} good matches")
 
         if melhor_score >= self.min_good_matches:
             print(f"Preset identificado: {melhor_preset} com score {melhor_score}")

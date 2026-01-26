@@ -1,4 +1,3 @@
-import os
 import json
 import cv2
 import time
@@ -10,6 +9,7 @@ from algorithms.orb import PresetRecognizer as ORBRecognizer
 from algorithms.sift import PresetRecognizer as SIFTRecognizer
 from algorithms.brisk import PresetRecognizer as BRISKRecognizer
 from algorithms.r2d2_preset import PresetRecognizer as R2D2Recognizer
+from algorithms.kaze import PresetRecognizer as KAZERecognizer
 from algorithms.superpoint_recognizer import SuperPointPresetRecognizer as SuperPointRecognizer
 
 datetime_now = time.strftime("%Y%m%d-%H%M%S")
@@ -27,6 +27,8 @@ def get_recognizer(algorithm: str):
         return SIFTRecognizer()
     elif algorithm == "brisk":
         return BRISKRecognizer()
+    elif algorithm == "kaze":
+        return KAZERecognizer()
     elif algorithm == "r2d2":
         return R2D2Recognizer()
     elif algorithm == "superpoint":
@@ -38,12 +40,14 @@ def get_recognizer(algorithm: str):
 def load_image(path: str) -> np.ndarray:
     if path.startswith("/"):
         project_root = Path(__file__).resolve().parent
-        abs_path = project_root / path[1:] 
+        abs_path = project_root / path[1:]
         img = cv2.imread(str(abs_path))
     else:
         img = cv2.imread(path)
     if img is None:
-        raise FileNotFoundError(f"Image not found: {abs_path if path.startswith('/') else path}")
+        raise FileNotFoundError(
+            f"Image not found: {abs_path if path.startswith('/') else path}"
+        )
     return img
 
 
@@ -77,7 +81,7 @@ def main():
                 "detected": detected,
                 "score": score,
                 "correct": correct,
-                "test_image": test["image_path"]
+                "test_image": test["image_path"],
             }
             all_results.append(result)
             total_tests += 1
@@ -99,7 +103,7 @@ def main():
         "total_tests": total_tests,
         "total_correct": total_correct,
         "wrong_presets": wrong_presets,
-        "results": all_results
+        "results": all_results,
     }
 
     with open(RESULTS_JSON, "w", encoding="utf-8") as f:
