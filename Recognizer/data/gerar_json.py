@@ -2,8 +2,8 @@ import os
 import json
 import re
 
-TEST_ROOT = "/Users/victorgomes/Documents/GitHub/PresetsRecognizer/Recognizer/data/images-test"
-REF_ROOT = "/Users/victorgomes/Documents/GitHub/PresetsRecognizer/Recognizer/data/images-ref"
+TEST_ROOT = "Recognizer/data/images-test"
+REF_ROOT = "Recognizer/data/images-ref"
 
 # Câmeras que você quer exportar
 CAMERAS = [
@@ -30,7 +30,7 @@ CAMERAS = [
     "cam_163",
 ]
 
-OUTPUT_JSON = "cameras.json"
+OUTPUT_JSON = "Recognizer/data/cameras.json"
 
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
 PRESET_REGEX = re.compile(r"preset_(\d+)", re.IGNORECASE)

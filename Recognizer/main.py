@@ -9,10 +9,9 @@ from algorithms.orb import PresetRecognizer as ORBRecognizer
 from algorithms.sift import PresetRecognizer as SIFTRecognizer
 from algorithms.brisk import PresetRecognizer as BRISKRecognizer
 from algorithms.r2d2_preset import PresetRecognizer as R2D2Recognizer
-from algorithms.superpoint_recognizer import (
-    SuperPointPresetRecognizer as SuperPointRecognizer,
-)
 from algorithms.alike_preset import AlikePresetRecognizer
+from algorithms.kaze import PresetRecognizer as KAZERecognizer
+from algorithms.superpoint_recognizer import SuperPointPresetRecognizer as SuperPointRecognizer
 
 datetime_now = time.strftime("%Y%m%d-%H%M%S")
 PROJECT_ROOT = Path(__file__).resolve().parent
@@ -30,6 +29,8 @@ def get_recognizer(algorithm: str):
         return SIFTRecognizer()
     elif algorithm == "brisk":
         return BRISKRecognizer()
+    elif algorithm == "kaze":
+        return KAZERecognizer()
     elif algorithm == "r2d2":
         return R2D2Recognizer()
     elif algorithm == "superpoint":
@@ -88,7 +89,7 @@ def main():
                 "detected": detected,
                 "score": score,
                 "correct": correct,
-                "test_image": test["image_path"]
+                "test_image": test["image_path"],
             }
             all_results.append(result)
             total_tests += 1
@@ -110,7 +111,7 @@ def main():
         "total_tests": total_tests,
         "total_correct": total_correct,
         "wrong_presets": wrong_presets,
-        "results": all_results
+        "results": all_results,
     }
 
     with open(RESULTS_JSON, "w", encoding="utf-8") as f:
