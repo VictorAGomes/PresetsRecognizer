@@ -20,7 +20,7 @@ class PresetRecognizer:
 
     def __init__(
         self,
-        model_path: str = "Recognizer/algorithms/r2d2/r2d2_WASF_N16.pt",
+        model_path: str = "algorithms/r2d2/r2d2_WASF_N16.pt",
         good_match_ratio: float = 0.75,
         min_good_matches: int = 10,
         target_size: Tuple[int, int] = (640, 480),
