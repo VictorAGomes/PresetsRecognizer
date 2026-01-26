@@ -9,6 +9,7 @@ from algorithms.orb import PresetRecognizer as ORBRecognizer
 from algorithms.sift import PresetRecognizer as SIFTRecognizer
 from algorithms.brisk import PresetRecognizer as BRISKRecognizer
 from algorithms.r2d2_preset import PresetRecognizer as R2D2Recognizer
+from algorithms.alike_preset import AlikePresetRecognizer
 from algorithms.kaze import PresetRecognizer as KAZERecognizer
 from algorithms.superpoint_recognizer import SuperPointPresetRecognizer as SuperPointRecognizer
 
@@ -17,8 +18,9 @@ PROJECT_ROOT = Path(__file__).resolve().parent
 PRESET_TEST_JSON = PROJECT_ROOT / "data/cameras.json"
 RESULTS_JSON = PROJECT_ROOT / f"resultados/resultados-{datetime_now}.json"
 
-# Escolha do algoritmo: "orb" ou "sift" ou "brisk" ou "r2d2" ou "superpoint"
-ALGORITHM = "superpoint"
+# Escolha do algoritmo: "orb" ou "sift" ou "brisk" ou "r2d2" ou "superpoint" ou "alike"
+ALGORITHM = "orb"
+
 
 def get_recognizer(algorithm: str):
     if algorithm == "orb":
@@ -33,6 +35,12 @@ def get_recognizer(algorithm: str):
         return R2D2Recognizer()
     elif algorithm == "superpoint":
         return SuperPointRecognizer()
+    elif algorithm == "alike":
+        # Usando 'alike-t' como padrão por ser lightweight e rápido, mas pode ser configurado.
+        # Assumindo que o arquivo model weights está em Recognizer/algorithms/alike/alike-t.pth
+        return AlikePresetRecognizer(
+            model_name="alike-t", model_weights_path="Recognizer/algorithms/alike/alike-t.pth"
+        )
     else:
         raise ValueError(f"Algoritmo desconhecido: {algorithm}")
 
