@@ -1,0 +1,3 @@
+[submodule "Recognizer/algorithms/disk"]
+	path = Recognizer/algorithms/disk
+	url = https://github.com/cvlab-epfl/disk.git
