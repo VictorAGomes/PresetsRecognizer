@@ -1,44 +1,45 @@
 import logging
+import os
 from typing import Dict, Optional, Tuple
 
 import cv2
 import numpy as np
 import torch
-from PIL import Image
 
-from algorithms.r2d2.extract import load_network, extract_multiscale, NonMaxSuppression
-from algorithms.r2d2.tools.dataloader import norm_RGB
+# Import the ALIKE model class
+# Assuming the file structure: Recognizer/algorithms/alike/alike.py
+from algorithms.alike.alike import ALike, configs
 
 logger = logging.getLogger(__name__)
 
 
-class PresetRecognizer:
+class AlikePresetRecognizer:
     """
-    Classe para reconhecimento de presets de câmera usando R2D2.
-    Pipeline: pré-processamento -> R2D2 extração -> matching com descritores
+    Classe para reconhecimento de presets de câmera usando ALIKE.
+    Pipeline: pré-processamento -> ALIKE extração -> matching com descritores
     """
 
     def __init__(
         self,
-        model_path: str = "Recognizer/algorithms/r2d2/r2d2_WASF_N16.pt",
+        model_name: str = "alike-t",
+        model_weights_path: Optional[str] = None,
         good_match_ratio: float = 0.75,
         min_good_matches: int = 10,
         target_size: Tuple[int, int] = (640, 480),
-        top_k: int = 5000,
-        reliability_thr: float = 0.7,
-        repeatability_thr: float = 0.7,
+        top_k: int = 2000,
+        scores_th: float = 0.2,
     ) -> None:
         """
-        Inicializa o reconhecedor de presets com R2D2.
+        Inicializa o reconhecedor de presets com ALIKE.
 
         Args:
-            model_path: caminho para o modelo R2D2.
+            model_name: variante do modelo ('alike-t', 'alike-s', 'alike-n', 'alike-l').
+            model_weights_path: caminho para os pesos (.pth). Se None, tenta usar o padrão da config.
             good_match_ratio: razão de Lowe no matching (0 < ratio < 1).
             min_good_matches: número mínimo de good matches para identificar um preset.
             target_size: tamanho para redimensionar imagens (largura, altura).
-            top_k: número máximo de keypoints a extrair.
-            reliability_thr: threshold de confiabilidade para NMS.
-            repeatability_thr: threshold de repetibilidade para NMS.
+            top_k: número máximo de keypoints.
+            scores_th: threshold de score para keypoints.
         """
         if not (0 < good_match_ratio < 1):
             raise ValueError("good_match_ratio deve estar em (0, 1).")
@@ -48,18 +49,43 @@ class PresetRecognizer:
         self.target_size = target_size
         self.top_k = top_k
 
-        # Carrega o modelo R2D2
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.net = load_network(model_path)
-        if torch.cuda.is_available():
-            self.net = self.net.cuda()
+        # Configuração do modelo ALIKE
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
-        # Detector NMS
-        self.detector = NonMaxSuppression(
-            rel_thr=reliability_thr, rep_thr=repeatability_thr
+        if model_name not in configs:
+            raise ValueError(
+                f"Modelo {model_name} desconhecido. Opções: {list(configs.keys())}"
+            )
+
+        cfg = configs[model_name]
+
+        # Override path if provided
+        weights_path = model_weights_path if model_weights_path else cfg["model_path"]
+        # If the path is relative and we are running from Recognizer root, we might need to adjust
+        if not os.path.exists(weights_path) and model_weights_path is None:
+            # Fallback to look in relative path
+            weights_path = os.path.join(
+                "algorithms/alike", os.path.basename(cfg["model_path"])
+            )
+
+        logger.info(f"Carregando ALIKE ({model_name}) de: {weights_path}")
+
+        self.model = ALike(
+            c1=cfg["c1"],
+            c2=cfg["c2"],
+            c3=cfg["c3"],
+            c4=cfg["c4"],
+            dim=cfg["dim"],
+            single_head=cfg["single_head"],
+            radius=cfg["radius"],
+            top_k=top_k,
+            scores_th=scores_th,
+            model_path=weights_path,
+            device=self.device,
         )
+        self.model.eval()
 
-        # Matcher - R2D2 usa descritores L2
+        # Matcher - ALIKE descriptors are float, so use L2 Norm
         self.bf = cv2.BFMatcher(cv2.NORM_L2, crossCheck=False)
 
         # Descritores dos presets
@@ -70,11 +96,12 @@ class PresetRecognizer:
     def _preprocess_image(self, imagem: np.ndarray) -> np.ndarray:
         """
         Converte para RGB (se necessário) e redimensiona para target_size.
+        ALIKE espera RGB.
         """
         if imagem is None:
             raise ValueError("Imagem inválida: None")
 
-        # Converte BGR para RGB se necessário
+        # Converte BGR para RGB se necessário (OpenCV carrega em BGR)
         if len(imagem.shape) == 3 and imagem.shape[2] == 3:
             imagem = cv2.cvtColor(imagem, cv2.COLOR_BGR2RGB)
 
@@ -87,56 +114,38 @@ class PresetRecognizer:
 
         return imagem
 
-    def _extract_r2d2_features(
+    def _extract_features(
         self, imagem: np.ndarray
     ) -> Tuple[np.ndarray, Optional[np.ndarray]]:
         """
-        Extrai keypoints e descritores R2D2 de uma imagem.
+        Extrai keypoints e descritores ALIKE.
 
         Returns:
-            (keypoints, descriptors) onde keypoints é Nx2 (x, y) e descriptors é NxD
+            keypoints: (N, 2)
+            descriptors: (N, D)
         """
         if imagem is None or imagem.size == 0:
             return np.array([]), None
 
         try:
-            # Converte para tensor PyTorch
-            img_pil = Image.fromarray(imagem)
-            img_tensor = norm_RGB(img_pil)[None]  # [1, 3, H, W]
+            # ALIKE forward method requires RGB numpy array (H, W, 3)
+            # Preprocessing already ensures RGB and Resize
 
-            if torch.cuda.is_available():
-                img_tensor = img_tensor.cuda()
-
-            # Extrai features em múltiplas escalas
+            # Forward pass
+            # Note: image_size_max is arbitrary large because we already resized
             with torch.no_grad():
-                xys, desc, scores = extract_multiscale(
-                    self.net,
-                    img_tensor,
-                    self.detector,
-                    scale_f=2**0.25,
-                    min_scale=0.0,
-                    max_scale=1,
-                    min_size=256,
-                    max_size=1024,
-                    verbose=False,
-                )
+                pred = self.model(imagem, sub_pixel=True)
 
-            xys = xys.cpu().numpy()
-            desc = desc.cpu().numpy()
-            scores = scores.cpu().numpy()
+            keypoints = pred["keypoints"]
+            descriptors = pred["descriptors"]
 
-            # Seleciona top-k keypoints
-            if len(scores) > 0:
-                idxs = scores.argsort()[-self.top_k or None :]
-                keypoints = xys[idxs, :2]  # Pega apenas x, y
-                descriptors = desc[idxs]
-            else:
+            if len(keypoints) == 0:
                 return np.array([]), None
 
             return keypoints, descriptors
 
         except Exception as e:
-            logger.warning(f"Falha ao extrair features R2D2: {e}")
+            logger.warning(f"Falha ao extrair features ALIKE: {e}")
             return np.array([]), None
 
     def configurar_presets(self, presets: Dict[str, np.ndarray]) -> None:
@@ -154,7 +163,7 @@ class PresetRecognizer:
 
             try:
                 img_proc = self._preprocess_image(img)
-                keypoints, descriptors = self._extract_r2d2_features(img_proc)
+                keypoints, descriptors = self._extract_features(img_proc)
 
                 if descriptors is None or len(keypoints) == 0:
                     logger.warning(
@@ -169,6 +178,9 @@ class PresetRecognizer:
 
             except ValueError as e:
                 logger.warning(f"Falha ao preprocessar preset '{nome}': {e}")
+                continue
+            except Exception as e:
+                logger.error(f"Erro ao configurar preset '{nome}': {e}")
                 continue
 
         logger.info(
@@ -221,9 +233,9 @@ class PresetRecognizer:
             img_nova = self._preprocess_image(imagem)
         except ValueError as e:
             logger.error(f"Imagem inválida: {e}")
-            raise
+            return None, 0.0
 
-        keypoints_novos, descriptors_novos = self._extract_r2d2_features(img_nova)
+        keypoints_novos, descriptors_novos = self._extract_features(img_nova)
 
         if descriptors_novos is None or len(keypoints_novos) == 0:
             logger.warning("Não foi possível extrair descritores da imagem nova")
@@ -260,6 +272,3 @@ class PresetRecognizer:
                 f"com score {melhor_score}"
             )
             return None, melhor_score
-
-
-recognizer = PresetRecognizer()
