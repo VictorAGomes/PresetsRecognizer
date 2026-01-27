@@ -1,0 +1,207 @@
+import logging
+from typing import Dict, List, Optional, Tuple
+
+import cv2
+import numpy as np
+
+logger = logging.getLogger(__name__)
+
+
+class PresetRecognizer:
+    """
+    Classe para reconhecimento de presets de câmera usando AKAZE e feature matching.
+    Pipeline: pré-processamento -> AKAZE -> Lowe ratio test
+    """
+
+    def __init__(
+        self,
+        num_features: int = 10000,
+        good_match_ratio: float = 0.75,
+        min_good_matches: int = 10,
+        target_size: Tuple[int, int] = (640, 480),
+        descriptor_type: int = cv2.AKAZE_DESCRIPTOR_MLDB,
+        descriptor_size: int = 0,
+        descriptor_channels: int = 3,
+        extended: bool = False,
+        upright: bool = False,
+        threshold: float = 0.001,
+        n_octaves: int = 4,
+        n_octave_layers: int = 4,
+        diffusivity: int = cv2.KAZE_DIFF_PM_G2,
+    ) -> None:
+        """
+        Inicializa o reconhecedor de presets usando AKAZE.
+
+        Args:
+            num_features: número máximo de features AKAZE por imagem.
+            good_match_ratio: razão de Lowe no matching (0 < ratio < 1).
+            target_size: tamanho para redimensionar imagens (largura, altura).
+            descriptor_type: Tipo de descritor AKAZE (ex.: MLDB).
+            descriptor_size: Dimensão do descritor (0 usa padrão).
+            descriptor_channels: Número de canais do descritor (1, 2 ou 3).
+            extended: Set to enable extraction of extended (128-byte) descriptor.
+            upright: Set to enable use of upright descriptors (non rotation-invariant).
+            threshold: Detector response threshold to accept point.
+            n_octaves: Maximum octave evolution of the image.
+            n_octave_layers: Default number of sublevels per scale level.
+            diffusivity: Diffusivity type.
+        """
+        if not (0 < good_match_ratio < 1):
+            raise ValueError("good_match_ratio deve estar em (0, 1).")
+
+        self.num_features = num_features
+        self.good_match_ratio = good_match_ratio
+        self.min_good_matches = min_good_matches
+        self.target_size = target_size
+
+        # Detector AKAZE
+        self.akaze = cv2.AKAZE_create()
+
+        # Matcher para AKAZE (descritores binários MLDB usam Hamming)
+        self.bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=False)
+
+        self.descritores_presets: Dict[str, Tuple[List[cv2.KeyPoint], np.ndarray]] = {}
+        self.presets_referencia: Dict[str, np.ndarray] = {}
+
+    def _preprocess_image(self, imagem: np.ndarray) -> np.ndarray:
+        if imagem is None:
+            raise ValueError("Imagem inválida: None")
+        if len(imagem.shape) == 3:
+            imagem = cv2.cvtColor(imagem, cv2.COLOR_BGR2GRAY)
+        try:
+            imagem = cv2.resize(imagem, self.target_size)
+        except cv2.error as e:
+            raise ValueError(
+                f"Falha ao redimensionar imagem de tamanho {imagem.shape}: {e}"
+            )
+        return imagem.copy()
+
+    def _compute_descriptors(
+        self, imagem: np.ndarray
+    ) -> Tuple[List[cv2.KeyPoint], Optional[np.ndarray]]:
+        if imagem is None:
+            return [], None
+        try:
+            # First detect keypoints
+            keypoints = self.akaze.detect(imagem, None)
+
+            # Sort by response and keep top N
+            keypoints = sorted(keypoints, key=lambda x: x.response, reverse=True)[
+                : self.num_features
+            ]
+
+            # Compute descriptors
+            keypoints, descriptors = self.akaze.compute(imagem, keypoints)
+
+        except Exception as e:
+            logger.warning(f"Falha ao detectar/calcular descritores AKAZE: {e}")
+            return [], None
+
+        if descriptors is None or len(keypoints) == 0:
+            return [], None
+        return keypoints, descriptors
+
+    def configurar_presets(self, presets: Dict[str, np.ndarray]) -> None:
+        self.presets_referencia = {}
+        for nome, img in presets.items():
+            if img is None:
+                logger.warning(f"Imagem do preset '{nome}' é None; ignorando")
+                continue
+            try:
+                img_proc = self._preprocess_image(img)
+            except ValueError as e:
+                logger.warning(f"Falha ao preprocessar preset '{nome}': {e}")
+                continue
+            self.presets_referencia[nome] = img_proc
+        self._computar_descritores_presets()
+
+    def _computar_descritores_presets(self) -> None:
+        self.descritores_presets = {}
+        for nome_preset, imagem in self.presets_referencia.items():
+            try:
+                keypoints, descriptors = self._compute_descriptors(imagem)
+                if descriptors is None or len(keypoints) == 0:
+                    logger.warning(
+                        f"Preset '{nome_preset}' não possui descritores suficientes; ignorando"
+                    )
+                    continue
+                self.descritores_presets[nome_preset] = (keypoints, descriptors)
+                logger.debug(f"Preset {nome_preset}: {len(keypoints)} keypoints")
+            except Exception as e:
+                logger.error(f"Erro ao processar preset '{nome_preset}': {e}")
+        logger.info(
+            f"Configuração de presets concluída. Total válidos: {len(self.descritores_presets)} presets"
+        )
+
+    def _calcular_good_matches(
+        self,
+        descriptors_novos: np.ndarray,
+        descriptors_preset: np.ndarray,
+    ) -> int:
+        if descriptors_novos is None or descriptors_preset is None:
+            return 0
+        try:
+            knn_matches = self.bf.knnMatch(descriptors_novos, descriptors_preset, k=2)
+        except Exception as e:
+            logger.warning(f"Falha no knnMatch: {e}")
+            return 0
+        ratio = float(self.good_match_ratio)
+        good_matches = []
+        for m_n in knn_matches:
+            if len(m_n) < 2:
+                continue
+            m, n = m_n[0], m_n[1]
+            if m.distance < ratio * n.distance:
+                good_matches.append(m)
+        return len(good_matches)
+
+    def identificar_preset(self, imagem: np.ndarray) -> Tuple[Optional[str], float]:
+        if not self.descritores_presets:
+            logger.warning("Nenhum preset configurado; retornando None")
+            return None, 0.0
+        try:
+            img_nova_gray = self._preprocess_image(imagem)
+        except ValueError as e:
+            logger.error(f"Imagem inválida ou não encontrada: {e}")
+            raise
+        keypoints_novos, descriptors_novos = self._compute_descriptors(img_nova_gray)
+        if descriptors_novos is None or len(keypoints_novos) == 0:
+            logger.warning("Não foi possível extrair descritores da imagem nova")
+            return None, 0.0
+        logger.info(
+            f"Identificando preset para imagem com {len(keypoints_novos)} keypoints"
+        )
+        matches_por_preset: Dict[str, int] = {}
+        for nome_preset, (keypoints_preset, descriptors_preset) in list(
+            self.descritores_presets.items()
+        ):
+            if descriptors_preset is None or len(keypoints_preset) == 0:
+                logger.debug(
+                    f"{nome_preset}: ignorado (sem descritores válidos no preset)"
+                )
+                continue
+            num_matches = self._calcular_good_matches(
+                descriptors_novos,
+                descriptors_preset,
+            )
+            matches_por_preset[nome_preset] = num_matches
+            logger.debug(f"{nome_preset}: {num_matches} good matches")
+        if not matches_por_preset:
+            return None, 0.0
+        melhor_preset = max(matches_por_preset, key=matches_por_preset.get)
+        melhor_score = float(matches_por_preset[melhor_preset])
+        logger.info(
+            f"Melhor preset: {melhor_preset} " f"com {melhor_score} good matches"
+        )
+        if melhor_score >= self.min_good_matches:
+            print(f"Preset identificado: {melhor_preset} " f"com score {melhor_score}")
+            return str(melhor_preset), melhor_score
+        else:
+            print(
+                f"Nenhum preset passou os limites: melhor foi {melhor_preset} "
+                f"com score {melhor_score}"
+            )
+            return None, melhor_score
+
+
+recognizer = PresetRecognizer()

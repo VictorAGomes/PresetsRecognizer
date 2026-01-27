@@ -11,16 +11,13 @@ from algorithms.brisk import PresetRecognizer as BRISKRecognizer
 from algorithms.r2d2_preset import PresetRecognizer as R2D2Recognizer
 from algorithms.alike_preset import AlikePresetRecognizer
 from algorithms.kaze import PresetRecognizer as KAZERecognizer
+from algorithms.akaze import PresetRecognizer as AKAZERecognizer
 from algorithms.superpoint_recognizer import SuperPointPresetRecognizer as SuperPointRecognizer
 from algorithms.disk_recognizer import PresetRecognizer as DiskRecognizer
 
-datetime_now = time.strftime("%Y%m%d-%H%M%S")
 PROJECT_ROOT = Path(__file__).resolve().parent
 PRESET_TEST_JSON = PROJECT_ROOT / "data/cameras.json"
-RESULTS_JSON = PROJECT_ROOT / f"resultados/resultados-{datetime_now}.json"
 
-# Escolha do algoritmo: "orb" ou "sift" ou "brisk" ou "r2d2" ou "superpoint"
-ALGORITHM = "disk"
 
 def get_recognizer(algorithm: str):
     if algorithm == "orb":
@@ -31,6 +28,8 @@ def get_recognizer(algorithm: str):
         return BRISKRecognizer()
     elif algorithm == "kaze":
         return KAZERecognizer()
+    elif algorithm == "akaze":
+        return AKAZERecognizer()
     elif algorithm == "r2d2":
         return R2D2Recognizer()
     elif algorithm == "superpoint":
@@ -39,7 +38,7 @@ def get_recognizer(algorithm: str):
         return DiskRecognizer()
     elif algorithm == "alike":
         return AlikePresetRecognizer(
-            model_name="alike-t", model_weights_path="Recognizer/algorithms/alike/alike-t.pth"
+            model_name="alike-t", model_weights_path="algorithms/alike/alike-t.pth"
         )
     else:
         raise ValueError(f"Algoritmo desconhecido: {algorithm}")
@@ -59,7 +58,7 @@ def load_image(path: str) -> np.ndarray:
     return img
 
 
-def main():
+def main(algorithm: str = "orb"):
     with open(PRESET_TEST_JSON, "r", encoding="utf-8") as f:
         spec = json.load(f)
 
@@ -75,7 +74,7 @@ def main():
         presets = {
             str(p["id"]): load_image(p["image_path"]) for p in cam.get("presets", [])
         }
-        recognizer = get_recognizer(ALGORITHM)
+        recognizer = get_recognizer(algorithm)
         recognizer.configurar_presets(presets)
 
         for test in cam.get("tests", []):
@@ -104,7 +103,7 @@ def main():
     mean_score = total_score / total_tests if total_tests > 0 else 0.0
 
     summary = {
-        "algorithm": ALGORITHM,
+        "algorithm": algorithm,
         "accuracy": accuracy,
         "mean_score": mean_score,
         "elapsed_time_sec": elapsed_time,
@@ -113,6 +112,9 @@ def main():
         "wrong_presets": wrong_presets,
         "results": all_results,
     }
+
+    datetime_now = time.strftime("%Y%m%d-%H%M%S")
+    RESULTS_JSON = PROJECT_ROOT / f"resultados/resultados-{datetime_now}-{algorithm}.json"
 
     with open(RESULTS_JSON, "w", encoding="utf-8") as f:
         json.dump(summary, f, indent=2, ensure_ascii=False)
@@ -126,4 +128,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    for i in range (2):
+        for alg in ["orb", "sift", "brisk", "kaze", "akaze", "r2d2", "superpoint", "alike"]:
+            print(f"\n=== Executando com o algoritmo: {alg} ===")
+            main(alg)
