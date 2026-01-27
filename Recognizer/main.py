@@ -21,24 +21,25 @@ PRESET_TEST_JSON = PROJECT_ROOT / "data/cameras.json"
 
 def get_recognizer(algorithm: str):
     if algorithm == "orb":
-        return ORBRecognizer()
+        return ORBRecognizer(min_good_matches=1)
     elif algorithm == "sift":
-        return SIFTRecognizer()
+        return SIFTRecognizer(min_good_matches=1)
     elif algorithm == "brisk":
-        return BRISKRecognizer()
+        return BRISKRecognizer(min_good_matches=1)
     elif algorithm == "kaze":
-        return KAZERecognizer()
+        return KAZERecognizer(min_good_matches=1)
     elif algorithm == "akaze":
-        return AKAZERecognizer()
+        return AKAZERecognizer(min_good_matches=1)
     elif algorithm == "r2d2":
-        return R2D2Recognizer()
+        return R2D2Recognizer(min_good_matches=1)
     elif algorithm == "superpoint":
-        return SuperPointRecognizer()
+        return SuperPointRecognizer(min_good_matches=1)
     elif algorithm == "disk":
-        return DiskRecognizer()
+        return DiskRecognizer(min_good_matches=1)
     elif algorithm == "alike":
         return AlikePresetRecognizer(
-            model_name="alike-t", model_weights_path="algorithms/alike/alike-t.pth"
+            model_name="alike-t", model_weights_path="algorithms/alike/alike-t.pth",
+            min_good_matches=1
         )
     else:
         raise ValueError(f"Algoritmo desconhecido: {algorithm}")
@@ -128,7 +129,7 @@ def main(algorithm: str = "orb"):
 
 
 if __name__ == "__main__":
-    for i in range (2):
+    for i in range (1):
         for alg in ["orb", "sift", "brisk", "kaze", "akaze", "r2d2", "superpoint", "alike"]:
             print(f"\n=== Executando com o algoritmo: {alg} ===")
             main(alg)
