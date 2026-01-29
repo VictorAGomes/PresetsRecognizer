@@ -41,16 +41,7 @@ class PresetRecognizer:
         self.target_size = target_size
 
         # Detector ORB (parâmetros ajustados)
-        self.orb = cv2.ORB_create(
-            nfeatures=self.num_features,
-            scaleFactor=1.2,
-            nlevels=8,
-            edgeThreshold=31,
-            patchSize=31,
-            WTA_K=2,
-            scoreType=cv2.ORB_HARRIS_SCORE,
-            fastThreshold=15,
-        )
+        self.orb = cv2.ORB_create()
 
         # Matcher
         self.bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=False)

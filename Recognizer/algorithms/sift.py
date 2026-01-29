@@ -26,7 +26,7 @@ class PresetRecognizer:
         self.target_size = target_size
 
         # Detector SIFT
-        self.sift = cv2.SIFT_create(nfeatures=self.num_features)
+        self.sift = cv2.SIFT_create()
 
         # Matcher para SIFT (usa L2)
         self.bf = cv2.BFMatcher(cv2.NORM_L2, crossCheck=False)
