@@ -1,9 +1,10 @@
 import logging
+import math
 import os
+from copy import deepcopy
+
 import cv2
 import torch
-from copy import deepcopy
-import math
 
 # Use relative imports or adjust depending on your path structure.
 # Since we are in the same package (algorithms.alike), simple import works if run as module,
@@ -51,7 +52,7 @@ configs = {
         "radius": 2,
         "model_path": os.path.join(os.path.split(__file__)[0], "models", "alike-n.pth"),
     },
-    "alike-l": {
+    "alike-t": {
         "c1": 32,
         "c2": 64,
         "c3": 128,
@@ -59,7 +60,7 @@ configs = {
         "dim": 128,
         "single_head": False,
         "radius": 2,
-        "model_path": os.path.join(os.path.split(__file__)[0], "models", "alike-l.pth"),
+        "model_path": os.path.join(os.path.split(__file__)[0], "models", "alike-t.pth"),
     },
 }
 
@@ -213,6 +214,7 @@ class ALike(ALNet):
 
 if __name__ == "__main__":
     import numpy as np
+
     net = ALike(c1=32, c2=64, c3=128, c4=128, dim=128, single_head=False)
 
     image = np.random.random((640, 480, 3)).astype(np.float32)

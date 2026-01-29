@@ -33,7 +33,7 @@ class AlikePresetRecognizer:
         Inicializa o reconhecedor de presets com ALIKE.
 
         Args:
-            model_name: variante do modelo ('alike-t', 'alike-s', 'alike-n', 'alike-l').
+            model_name: variante do modelo ('alike-t', 'alike-s', 'alike-n', 'alike-t').
             model_weights_path: caminho para os pesos (.pth). Se None, tenta usar o padrão da config.
             good_match_ratio: razão de Lowe no matching (0 < ratio < 1).
             min_good_matches: número mínimo de good matches para identificar um preset.
