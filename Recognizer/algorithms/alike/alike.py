@@ -52,7 +52,7 @@ configs = {
         "radius": 2,
         "model_path": os.path.join(os.path.split(__file__)[0], "models", "alike-n.pth"),
     },
-    "alike-t": {
+    "alike-l": {
         "c1": 32,
         "c2": 64,
         "c3": 128,
@@ -60,7 +60,7 @@ configs = {
         "dim": 128,
         "single_head": False,
         "radius": 2,
-        "model_path": os.path.join(os.path.split(__file__)[0], "models", "alike-t.pth"),
+        "model_path": os.path.join(os.path.split(__file__)[0], "models", "alike-l.pth"),
     },
 }
 

@@ -1,19 +1,22 @@
 import json
-import cv2
 import time
 from pathlib import Path
+
+import cv2
 import numpy as np
+from algorithms.akaze import PresetRecognizer as AKAZERecognizer
+from algorithms.alike_preset import AlikePresetRecognizer
+from algorithms.brisk import PresetRecognizer as BRISKRecognizer
+from algorithms.disk_recognizer import PresetRecognizer as DiskRecognizer
+from algorithms.kaze import PresetRecognizer as KAZERecognizer
 
 # Importação dos algoritmos disponíveis
 from algorithms.orb import PresetRecognizer as ORBRecognizer
-from algorithms.sift import PresetRecognizer as SIFTRecognizer
-from algorithms.brisk import PresetRecognizer as BRISKRecognizer
 from algorithms.r2d2_preset import PresetRecognizer as R2D2Recognizer
-from algorithms.alike_preset import AlikePresetRecognizer
-from algorithms.kaze import PresetRecognizer as KAZERecognizer
-from algorithms.akaze import PresetRecognizer as AKAZERecognizer
-from algorithms.superpoint_recognizer import SuperPointPresetRecognizer as SuperPointRecognizer
-from algorithms.disk_recognizer import PresetRecognizer as DiskRecognizer
+from algorithms.sift import PresetRecognizer as SIFTRecognizer
+from algorithms.superpoint_recognizer import (
+    SuperPointPresetRecognizer as SuperPointRecognizer,
+)
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 PRESET_TEST_JSON = PROJECT_ROOT / "data/cameras.json"
@@ -38,8 +41,9 @@ def get_recognizer(algorithm: str):
         return DiskRecognizer(min_good_matches=1)
     elif algorithm == "alike":
         return AlikePresetRecognizer(
-            model_name="alike-t", model_weights_path="algorithms/alike/alike-t.pth",
-            min_good_matches=1
+            model_name="alike-t",
+            model_weights_path="algorithms/alike/alike-t.pth",
+            min_good_matches=1,
         )
     else:
         raise ValueError(f"Algoritmo desconhecido: {algorithm}")
@@ -81,7 +85,11 @@ def main(algorithm: str = "orb"):
         for test in cam.get("tests", []):
             img = load_image(test["image_path"])
             expected = str(test["expected_preset"])
+            # Calcula tempo de processamento
+            start_test_time = time.time()
             detected, score = recognizer.identificar_preset(img)
+            end_test_time = time.time()
+            processing_time = end_test_time - start_test_time
             correct = detected == expected
             result = {
                 "camera_id": camera_id,
@@ -90,6 +98,7 @@ def main(algorithm: str = "orb"):
                 "score": score,
                 "correct": correct,
                 "test_image": test["image_path"],
+                "processing_time_sec": processing_time,
             }
             all_results.append(result)
             total_tests += 1
@@ -115,7 +124,9 @@ def main(algorithm: str = "orb"):
     }
 
     datetime_now = time.strftime("%Y%m%d-%H%M%S")
-    RESULTS_JSON = PROJECT_ROOT / f"resultados/resultados-{datetime_now}-{algorithm}.json"
+    RESULTS_JSON = (
+        PROJECT_ROOT / f"resultados/resultados-{datetime_now}-{algorithm}.json"
+    )
 
     with open(RESULTS_JSON, "w", encoding="utf-8") as f:
         json.dump(summary, f, indent=2, ensure_ascii=False)
@@ -129,7 +140,16 @@ def main(algorithm: str = "orb"):
 
 
 if __name__ == "__main__":
-    for i in range (1):
-        for alg in ["orb", "sift", "brisk", "kaze", "akaze", "r2d2", "superpoint", "alike"]:
+    for i in range(1):
+        for alg in [
+            "alike",
+            "sift",
+            "brisk",
+            "kaze",
+            "akaze",
+            "r2d2",
+            "superpoint",
+            "alike",
+        ]:
             print(f"\n=== Executando com o algoritmo: {alg} ===")
             main(alg)
